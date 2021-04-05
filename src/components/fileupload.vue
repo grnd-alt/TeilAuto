@@ -97,11 +97,11 @@
     color:white;
     transition-duration: 0.3s;
   }
-
 </style>
 
 <template>
   <div id="file-drag-drop">
+      <vue-topprogress ref="topProgress"></vue-topprogress>
     <form ref="fileform" id = "dropzone">
         <span class="drop-files">CSV Dateien in dieses Feld ziehen</span>
         <div id = "filelist">
@@ -109,7 +109,7 @@
                 <tr class = "files" v-bind:key="index" v-for="index in files"><td><a>{{index.name}}</a></td><td><img :id="index.name" v-on:click="delfile" class = "x-button" src= "../assets/icons8-xbox-x-100.png"></td></tr>
             </table>    
         </div>
-        <button class = "raise" v-if="files.length >0" v-on:click="filehandler">Bestätigen</button>
+        <button class = "raise" v-if="files.length >0" v-on:click="FileHandler">Bestätigen</button>
         <button class = "noraise" v-if="files.length ==0">Bestätigen</button>
     </form>
     <br>
@@ -124,7 +124,12 @@
 
 import 'zingchart/es6';
 import zingchartVue from 'zingchart-vue';
-  export default {
+import vueTopprogress from 'vue-top-progress';
+import Vue from 'vue';
+Vue.use(vueTopprogress);
+// import func from 'vue-editor-bridge';
+
+export default {
       name:"fileupload",
       components:{zingchart:zingchartVue},
       data(){
@@ -179,53 +184,40 @@ import zingchartVue from 'zingchart-vue';
                 }
               return true;
           },
-          
-          filehandler(e){
-                var readfile = function(file){
-                    return new Promise((resolve,reject)=>{
+          ReadFiles(files){
+              this.$refs.topProgress.start();
+              var reader = new FileReader();
+              var ReadFile = function(index){
+                  if (index<files.length){
+                      var file = files[index];
+                      reader.onload =function(e){
+                          console.log(e.target.result);
+                          ReadFile(index+1);
+                          if (index == files.length-1){
+                              setTimeout(()=>{
+                                  this.$refs.topProgress.done();
+                              },500)
+                              
+                          }
+                      }.bind(this);
+                      reader.readAsBinaryString(file);
+                  }
+                  else{
+                      return;
+                  }
+              }.bind(this);
+              ReadFile(0);
+          },
+          async FileHandler(element){
+              element.preventDefault();
+              await this.ReadFiles(this.files);
+          },
+          obsoletefilehandler(e){
+              e.preventDefault();
+                var readfile =async function(file){
+                    console.log("started");
                     let reader = new FileReader();
-                    reader.readAsBinaryString(file);
-                    reader.onload = function(el){    
-                        var dataFile= el.target.result.split("\n").slice(1);
-                        for(let i = 0;i<dataFile.length;i++){
-                                var element = dataFile[i];
-                                try{
-                                    var Objekt=Array();
-                                    Objekt["month"] = parseInt(element.split(";")[6].split("-")[1]);
-                                    Objekt["year"] = parseInt(element.split(";")[6].split("-")[0]);
-                                    Objekt["price"] = Number(element.split(";")[11].replace(",",".").replace('"','').replace('"',''));
-                                    Objekt["val"] =(Objekt["month"]/13)+Objekt["year"];
-                                    this.FileObjects.push(Objekt);
-                                    this.addmonth(Objekt);
-                                }catch(error){
-                                    continue;
-                                }
-                        }
-                        console.log(this.months);
-                    }.bind(this);
-                    var a = 1;
-                    if (a==1){
-                        resolve("hello"); 
-                    }else{
-                        reject("hello not");
-                    }
-                    // reject();
                     
-                });}
-                readfile("file").then(function(me){
-                    alert(me);
-                },function(me){
-                    alert(me);
-                },);
-                e.preventDefault();
-                // this.$refs.main.removescalevalue({scale:"scale-x",nodeindex:1})
-                // this.$refs.main.removenode({nodeindex:1});
-                // this.$refs.main.addscalevalue({scale:"scale-x",value:"Januar"});
-                // this.$refs.main.appendseriesvalues({values:[[5]]});
-                // this.$refs.main.removescalevalue({scale:"scale-x",nodeindex:1})
-                this.files.forEach(file=>{
-                    let reader = new FileReader();
-                    reader.readAsBinaryString(file);
                     reader.onload = function(el){    
                         var dataFile= el.target.result.split("\n").slice(1);
                         for(let i = 0;i<dataFile.length;i++){
@@ -239,18 +231,21 @@ import zingchartVue from 'zingchart-vue';
                                     this.FileObjects.push(Objekt);
                                     this.addmonth(Objekt);
                                 }catch(error){
-                                    continue;
+                                    console.log(error);
                                 }
                         }
                         console.log(this.months);
                     }.bind(this);
-              });
-               
-              for(let i = 0; i< this.months.length;i++){
-                  this.$refs.main.appendseriesvalues({values:[[this.months[i]["price"]]]});
-                  this.$refs.main.addscalevalue({scale:"scale-x",value:this.months[i]["month"].toString() + "."+this.month[i]["year"].toString()});
-                  console.log("running through");
-              }
+                    await reader.readAsBinaryString(file);
+                    
+                }.bind(this);
+                var readfileHandler = async function(){
+                    for(let i = 0; i <this.files.length;i++){
+                        await readfile(this.files[i]);
+                    }
+                    console.log("loop end");
+                }.bind(this);
+                readfileHandler();
           },
 
           FindIndexInFiles(fileName){
@@ -260,22 +255,26 @@ import zingchartVue from 'zingchart-vue';
                   }
               }
           },          
-          determineDragAndDropCapable(){
-              var div = document.createElement('div');
-              return ( ( 'draggable' in div )
-                    || ( ' ondragstart' in div && 'ondrop' in div) )
-                    && 'FormData' in window
-                    && 'FileReader' in window;
-          },
+
           delfile(e){
               var el = this.FindIndexInFiles(e.target.id);
               this.files.splice(el,1);
               var table = document.getElementById("filetable");
               table.children[el].remove();
+          },
+            determineDragAndDropCapable(){
+              var div = document.createElement('div');
+              return ( ( 'draggable' in div )
+                    || ( ' ondragstart' in div && 'ondrop' in div) )
+                    && 'FormData' in window
+                    && 'FileReader' in window;
           }
       },
       mounted(){
-          
+          this.$refs.topProgress.start();
+          setTimeout(() => {
+              this.$refs.topProgress.done();
+          }, (300));
           this.dragAndDropCapable = this.determineDragAndDropCapable();
           if (this.dragAndDropCapable){
                 console.log("capable");
