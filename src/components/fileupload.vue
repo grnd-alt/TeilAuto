@@ -27,6 +27,7 @@
       color:gray;
   }
   .x-button{
+      vertical-align: middle;
       margin-top:auto;
       margin-bottom:auto;
       margin-left:0.5em;
@@ -91,54 +92,180 @@
   }
   .noraise:hover,
   .noraise:focus{
-      cursor:grab;
+    cursor:grab;
     box-shadow: inset 0 -3.25em 0 0 gray;
     border-color:gray;
     color:white;
     transition-duration: 0.3s;
+  }
+  .notification{
+    font-family: Helvetica; 
+    text-align: left;
+    font-size:1em;
+    position:fixed;
+    background-color:white;
+    z-index:15;
+    bottom:0;
+    padding-bottom:0%;
+    padding-top:0%;
+    padding-left:10%;
+    padding-right:10%;
+    left:50%;
+    transform: translate(-50%,0);
+    border-radius:10px;
+    transition-duration:0.5s;
+    margin-bottom:1%;  
+  }
+  .positive{
+    color:green;
+    border:2px solid green;
+  }
+  .negative{
+    color:red;
+    border:2px solid red;
+  }
+.notshown {
+    bottom:-25%;
+    transition-duration:0.8s;
+  }
+  #head{
+    font-size:1.2em;
+    /* background-color:red; */
+    top:50%;
+    transform:translateY(-50%);
+  }
+  #body{
+      font-size:1em;
+  }
+  #chartwrapper{
+      max-width:50%;
+      margin:auto;
   }
 </style>
 
 <template>
   <div id="file-drag-drop">
       <vue-topprogress ref="topProgress"></vue-topprogress>
-    <form ref="fileform" id = "dropzone">
+    <form ref="fileform" id = "dropzone" v-if="loaded==false||showFiles==true">
         <span class="drop-files">CSV Dateien in dieses Feld ziehen</span>
         <div id = "filelist">
             <table id = "filetable">
-                <tr class = "files" v-bind:key="index" v-for="index in files"><td><a>{{index.name}}</a></td><td><img :id="index.name" v-on:click="delfile" class = "x-button" src= "../assets/icons8-xbox-x-100.png"></td></tr>
+                <tr class = "files" v-bind:key="index.name" v-for="index in files"><td><a>{{index.name}}</a></td><td><img :id="index.name" v-on:click="delfile" class = "x-button" src= "../assets/icons8-xbox-x-100.png"></td></tr>
             </table>    
         </div>
-        <button class = "raise" v-if="files.length >0" v-on:click="FileHandler">Bestätigen</button>
-        <button class = "noraise" v-if="files.length ==0">Bestätigen</button>
+        <button class = "raise" v-if="newfiles.length >0" v-on:click="FileHandler">Bestätigen</button>
+        <button class = "noraise" v-if="newfiles.length ==0">Bestätigen</button>
     </form>
     <br>
     <a id = "file-drop-error"></a>
-  <zingchart ref = "main" id = "mainchart"  v-if="loaded" :data = "chartData"></zingchart>  
+  <div  class = "notshown notification"><a id = "head">{{notification.headline}}</a></div>
+  <div id = "chartwrapper">
+    <testchart v-if="loaded===true" :data='data'/>
+  </div>
   </div>
   
 </template>
 
 
 <script>
-
-import 'zingchart/es6';
-import zingchartVue from 'zingchart-vue';
-import vueTopprogress from 'vue-top-progress';
+import testchart from './testchart.vue' 
+import vueTopprogress from 'vue-top-progress'
 import Vue from 'vue';
 Vue.use(vueTopprogress);
 // import func from 'vue-editor-bridge';
 
 export default {
       name:"fileupload",
-      components:{zingchart:zingchartVue},
+      components:{
+          testchart
+      },
       data(){
           return{
+            data:{
+            labels:["1","2","3","4","5","6","7","8"],
+            datasets:[{
+                label:"Hello",
+                data:[1,3,4,4,5,5,6,7],
+                fill:false,
+                backgroundColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192,1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)'
+            ],
+                borderColor: [
+                'rgba(255, 99, 132, 1)',
+                'rgba(54, 162, 235, 1)',
+                'rgba(255, 206, 86, 1)',
+                'rgba(75, 192, 192, 1)',
+                'rgba(153, 102, 255, 1)',
+                'rgba(255, 159, 64, 1)'
+            ],
+            },{
+                label:"Hello",
+                data:[8,4,5,6,2,4,6,7],
+                fill:false,
+                backgroundColor: [
+                'rgba(130, 91, 255, 1)',
+                'rgba(130, 91, 255, 1)',
+                'rgba(130, 91, 255, 1)',
+                'rgba(130, 91, 255, 1)',
+                'rgba(130, 91, 255, 1)',
+            ],
+                borderColor: [
+                'rgba(130, 91, 255, 1)',
+                'rgba(130, 91, 255, 1)',
+                'rgba(130, 91, 255, 1)',
+                'rgba(130, 91, 255, 1)',
+                'rgba(130, 91, 255, 1)'
+            ],
+            }],
+        options:{
+            scales:{
+                yAxes:[{
+                    ticks:{
+                        beginAtZero:true
+                    },
+                    gridLines:{
+                        display:true
+                    }
+                }],
+                xAxes:[{
+                    gridLines:{
+                        display:true
+                    }
+                }]
+            },
+            responsive:true,
+            maintainAspectRatio:true,
+        }
+        },
+        files:[],
+        newfiles:[],
+              database:{
+                  InsertEntry:function(entry,filename){ // eslint-disable-line no-unused-vars
+                      let openRequest = indexedDB.open("data",1);
+                      openRequest.onupgradeneeded = function(event){ // eslint-disable-line no-unused-vars
+                          let db = openRequest.result;
+                          if(!db.objectStoreNames.contains('Entries')){
+                              db.createObjectStore('Entries',{keypath:'array'});
+                          }
+                      }
+                      openRequest.onsuccess = function(){
+                          let db = openRequest.result;
+                          let transaction = db.transaction("Entries","readwrite");
+                          let Entries = transaction.objectStore("Entries");
+                          let request = Entries.add({fromFile:filename},entry); // eslint-disable-line no-unused-vars
+                          db.close();
+                          
+                      }.bind(this);
+                  },},
               months: [],
               dragAndDropCapable:false,
-              files:[],
               errorfiles:[],
-              loaded:true,
+              loaded:false,
+              showFiles:true,
               FileObjects:[],
               chartData:{
                   type:"bar",
@@ -147,57 +274,135 @@ export default {
                       values:[1,2,3,4,5,]
                   }
               },
+              notification:{
+                  headline:"Upload finished",
+                  body:"",
+              }
               
           }
       },
 
       methods:{
-          addmonth(month){
-              for(let i =0; i < this.months.length;i++){
-                  var ListMonth = this.months[i];
-                  if (month["month"] == ListMonth["month"] && month["year"] == ListMonth["year"]){
-                      this.months[i]["price"] = Number(Number(this.months[i]["price"]) +Number(month["price"])).toFixed(2);
-                      return false;
-                  }
+          GetMonthOfArray(fileName){
+              console.log(fileName);
+          },
+          GetkmPerMonthChart(){
+              for(let i = 0; i< this.files.length;i++){
+                  this.GetMonthOfArray(this.files[i].key);
               }
-              for(let i = 0; i<this.months.length-1;i++){
-                  try{
-                        if(this.months[i]["val"] < month["val"]&&this.months[i+1]["val"]>month["val"]){
-                            this.months.splice(i,0,month);
+          },
+          DeleteEntrie:function(file){
+            let openRequest = indexedDB.open("data",1);
+            openRequest.onupgradeneeded = function(event){ // eslint-disable-line no-unused-vars
+                let db = openRequest.result;
+                if(!db.objectStoreNames.contains('Entries')){
+                    db.createObjectStore('Entries',{keypath:'array'});
+                }}
+            openRequest.onsuccess=function(){
+                let db = openRequest.result;
+                 let transaction = db.transaction("Entries","readonly");
+                    let Entries = transaction.objectStore("Entries");
+                    let request = Entries.openCursor();
+                    request.onsuccess=function(event){
+                        let cursor = event.target.result;
+                        
+                        if(cursor){
+                            let value = cursor.value["fromFile"];
+                            if (value==file.name){                                
+                                let trans2 = db.transaction("Entries","readwrite");
+                                let Entries = trans2.objectStore("Entries");
+                                let request = Entries.delete(cursor.key);// eslint-disable-line no-unused-vars
+                            }
+                            cursor.continue();
                         }
-                  }catch{
-                      console.log("errorr::  "+i)
-                  }
-              }
-              if (this.months.length == 0){
-                  this.months.push(month);
-                  return;
-              }
-                else if(this.months[0]["val"]>month["val"]){
-                    this.months.unshift(month);
+                    }.bind(this);
+            }
+          },
+          GetEntries:function(){
+            let openRequest = indexedDB.open("data",1);
+            openRequest.onupgradeneeded = function(event){ // eslint-disable-line no-unused-vars
+                let db = openRequest.result;
+                if(!db.objectStoreNames.contains('Entries')){
+                    db.createObjectStore('Entries',{keypath:'array'});
                 }
-                else if (this.months.slice(-1)["val"]<month["val"]){
-                    this.months.push(month);
                 }
-                else{
-                    this.months.push(month);
-                }
-              return true;
+                openRequest.onsuccess = function(){
+                let db = openRequest.result;
+                let transaction = db.transaction("Entries","readwrite");
+                let Entries = transaction.objectStore("Entries");
+                let request = Entries.openCursor();
+                request.onsuccess=function(event){
+                    let cursor = event.target.result;
+                    if(cursor){
+                        let key = cursor.primaryKey;
+                        let value = cursor.value;
+                        var indi = true;
+                        this.files.forEach((item)=>{
+                            if (item.name==value["fromFile"]){
+                                indi = false;
+                            }
+                        })
+                        if (indi){
+                            this.files.push({
+                                key:key,
+                                name:value["fromFile"],
+                            })
+                        }
+                        cursor.continue();
+                    }
+                    }.bind(this);
+                    db.close();
+                }.bind(this);
+            },
+          NegativeNotification(message){
+            this.notification.headline = message;
+            document.getElementsByClassName("notification")[0].classList.remove("notshown"); 
+            document.getElementsByClassName("notification")[0].classList.add("negative"); 
+            document.getElementsByClassName("notification")[0].classList.remove("positive"); 
+            setTimeout(()=>{
+                    document.getElementsByClassName("notification")[0].classList.add("notshown"); 
+                    document.getElementsByClassName("notification")[0].classList.remove("negative"); 
+            },3000)
+          },
+          PositiveNotification(message){
+            this.notification.headline = message;
+            document.getElementsByClassName("notification")[0].classList.remove("notshown"); 
+            document.getElementsByClassName("notification")[0].classList.add("positive"); 
+            document.getElementsByClassName("notification")[0].classList.remove("negative"); 
+            setTimeout(()=>{
+                    document.getElementsByClassName("notification")[0].classList.remove("positive"); 
+                    document.getElementsByClassName("notification")[0].classList.add("notshown"); 
+            },3000)
           },
           ReadFiles(files){
               this.$refs.topProgress.start();
               var reader = new FileReader();
-              var ReadFile = function(index){
+              var ReadFile = function(index,entries){
                   if (index<files.length){
                       var file = files[index];
-                      reader.onload =function(e){
-                          console.log(e.target.result);
-                          ReadFile(index+1);
-                          if (index == files.length-1){
-                              setTimeout(()=>{
-                                  this.$refs.topProgress.done();
-                              },500)
-                              
+                      reader.onload =function(el){
+                            // console.log(el.target.result);
+                            try{
+                                var localentries = el.target.result.split("\n").slice(1,-1);
+                                localentries.forEach(function(entry,index){
+                                    entry = entry.replaceAll("\"","");
+                                    localentries[index] = entry.split(";");
+                                    this.database.InsertEntry(localentries[index],file.name);
+                                }.bind(this));
+                                entries = entries.concat(localentries);
+                            }catch(error){
+                                console.error(error);
+                            }
+                            ReadFile(index+1,entries);
+                            if (index == files.length-1){
+                                this.PositiveNotification("Dateien Hochgeladen");
+                                setTimeout(()=>{
+                                    this.$refs.topProgress.done();
+                                    this.loaded=true;
+                                    this.showFiles=false;
+                                },1000)
+                                
+                                
                           }
                       }.bind(this);
                       reader.readAsBinaryString(file);
@@ -206,58 +411,28 @@ export default {
                       return;
                   }
               }.bind(this);
-              ReadFile(0);
+              ReadFile(0,new Array());
           },
           async FileHandler(element){
               element.preventDefault();
-              await this.ReadFiles(this.files);
-          },
-          obsoletefilehandler(e){
-              e.preventDefault();
-                var readfile =async function(file){
-                    console.log("started");
-                    let reader = new FileReader();
-                    
-                    reader.onload = function(el){    
-                        var dataFile= el.target.result.split("\n").slice(1);
-                        for(let i = 0;i<dataFile.length;i++){
-                                var element = dataFile[i];
-                                try{
-                                    var Objekt=Array();
-                                    Objekt["month"] = parseInt(element.split(";")[6].split("-")[1]);
-                                    Objekt["year"] = parseInt(element.split(";")[6].split("-")[0]);
-                                    Objekt["price"] = Number(element.split(";")[11].replace(",",".").replace('"','').replace('"',''));
-                                    Objekt["val"] =(Objekt["month"]/13)+Objekt["year"];
-                                    this.FileObjects.push(Objekt);
-                                    this.addmonth(Objekt);
-                                }catch(error){
-                                    console.log(error);
-                                }
-                        }
-                        console.log(this.months);
-                    }.bind(this);
-                    await reader.readAsBinaryString(file);
-                    
-                }.bind(this);
-                var readfileHandler = async function(){
-                    for(let i = 0; i <this.files.length;i++){
-                        await readfile(this.files[i]);
-                    }
-                    console.log("loop end");
-                }.bind(this);
-                readfileHandler();
+              await this.ReadFiles(this.newfiles);
           },
 
           FindIndexInFiles(fileName){
               for(let i = 0; i < this.files.length;i++){
                   if (fileName == this.files[i].name){
-                      return i;
+                    console.log(this.files[i].name);
+                    console.log(fileName);
+                    console.log(i);
+                    return i;
                   }
               }
-          },          
-
+              console.log("No index found");
+              return false;
+          },  
           delfile(e){
               var el = this.FindIndexInFiles(e.target.id);
+              this.DeleteEntrie(this.files[el]); 
               this.files.splice(el,1);
               var table = document.getElementById("filetable");
               table.children[el].remove();
@@ -272,12 +447,9 @@ export default {
       },
       mounted(){
           this.$refs.topProgress.start();
-          setTimeout(() => {
-              this.$refs.topProgress.done();
-          }, (300));
+          this.GetEntries();
           this.dragAndDropCapable = this.determineDragAndDropCapable();
           if (this.dragAndDropCapable){
-                console.log("capable");
                 var form = document.getElementById("dropzone");
                 document.addEventListener('dragover',function(){
                     form.classList.add("over"); 
@@ -290,25 +462,24 @@ export default {
               }.bind(this));
               document.addEventListener("drop",function(e){
                   for (let i = 0; i < e.dataTransfer.files.length; i ++ ){
-                      if (e.dataTransfer.files[i].name.split(".").slice(-1) == "csv"){
+                      if (e.dataTransfer.files[i].name.split(".").slice(-1) == "csv"&&this.FindIndexInFiles(e.dataTransfer.files[i].name)===false){
                         this.files.push(e.dataTransfer.files[i]);
+                        this.newfiles.push(e.dataTransfer.files[i]);
                       }
                       else{
                           this.errorfiles.push(e.dataTransfer.files[i].name);
                       }
                   }
                   if (this.errorfiles.length >0){
-                      document.getElementById("file-drop-error").innerText = "Die Datei(en):";
-                      for (let i = 0; i < this.errorfiles.length;i++){
-                          document.getElementById("file-drop-error").innerText += " \""+this.errorfiles[i] + "\",";
-                      }
-                      document.getElementById("file-drop-error").innerText += " sind nicht im richtigen Format (.csv)";
+                      this.NegativeNotification("doppelte bzw. Dateien im falschen Format werden ignoriert")
                   }
                   form.classList.remove("over"); 
                   form.classList.add("dropped"); 
               }.bind(this));
-
           }
+          setTimeout(() => {
+              this.$refs.topProgress.done();
+          }, (300));
       }
   }
 </script>
