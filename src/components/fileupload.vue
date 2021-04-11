@@ -146,7 +146,8 @@
 <template>
   <div id="file-drag-drop">
       <vue-topprogress ref="topProgress"></vue-topprogress>
-    <form ref="fileform" id = "dropzone" v-if="loaded==false||showFiles==true">
+      <button v-on:click="ToggleData">{{ DataToggleText }}</button>
+    <form ref="fileform" id = "dropzone" v-if="showFiles==true">
         <span class="drop-files">CSV Dateien in dieses Feld ziehen</span>
         <div id = "filelist">
             <table id = "filetable">
@@ -181,13 +182,9 @@ export default {
       },
       data(){
           return{
-            data:{
-            labels:["1","2","3","4","5","6","7","8"],
-            datasets:[{
-                label:"Hello",
-                data:[1,3,4,4,5,5,6,7],
-                fill:false,
-                backgroundColor: [
+            DataToggleText:"Dateien Verstecken",
+            entries:[],
+            colorways:[{backgroundColor: [
                 'rgba(255, 99, 132, 1)',
                 'rgba(255, 206, 86, 1)',
                 'rgba(75, 192, 192,1)',
@@ -201,12 +198,7 @@ export default {
                 'rgba(75, 192, 192, 1)',
                 'rgba(153, 102, 255, 1)',
                 'rgba(255, 159, 64, 1)'
-            ],
-            },{
-                label:"Hello",
-                data:[8,4,5,6,2,4,6,7],
-                fill:false,
-                backgroundColor: [
+            ],},{  backgroundColor: [
                 'rgba(130, 91, 255, 1)',
                 'rgba(130, 91, 255, 1)',
                 'rgba(130, 91, 255, 1)',
@@ -219,8 +211,48 @@ export default {
                 'rgba(130, 91, 255, 1)',
                 'rgba(130, 91, 255, 1)',
                 'rgba(130, 91, 255, 1)'
-            ],
-            }],
+            ],}],
+            data:{
+            labels:["1","2","3","4","5","6","7","8"],
+            datasets:[],
+            // datasets:[{
+            //     label:"Red",
+            //     data:[1,3,4,4,0,5,6,7],
+            //     fill:false,
+            //     backgroundColor: [
+            //     'rgba(255, 99, 132, 1)',
+            //     'rgba(255, 206, 86, 1)',
+            //     'rgba(75, 192, 192,1)',
+            //     'rgba(153, 102, 255, 1)',
+            //     'rgba(255, 159, 64, 1)'
+            // ],
+            //     borderColor: [
+            //     'rgba(255, 99, 132, 1)',
+            //     'rgba(54, 162, 235, 1)',
+            //     'rgba(255, 206, 86, 1)',
+            //     'rgba(75, 192, 192, 1)',
+            //     'rgba(153, 102, 255, 1)',
+            //     'rgba(255, 159, 64, 1)'
+            // ],
+            // },{
+            //     label:"Blue",
+            //     data:[8,4,5,6,2,4,6,7],
+            //     fill:false,
+            //     backgroundColor: [
+            //     'rgba(130, 91, 255, 1)',
+            //     'rgba(130, 91, 255, 1)',
+            //     'rgba(130, 91, 255, 1)',
+            //     'rgba(130, 91, 255, 1)',
+            //     'rgba(130, 91, 255, 1)',
+            // ],
+            //     borderColor: [
+            //     'rgba(130, 91, 255, 1)',
+            //     'rgba(130, 91, 255, 1)',
+            //     'rgba(130, 91, 255, 1)',
+            //     'rgba(130, 91, 255, 1)',
+            //     'rgba(130, 91, 255, 1)'
+            // ],
+            // }],
         options:{
             scales:{
                 yAxes:[{
@@ -265,15 +297,8 @@ export default {
               dragAndDropCapable:false,
               errorfiles:[],
               loaded:false,
-              showFiles:true,
+              showFiles:false,
               FileObjects:[],
-              chartData:{
-                  type:"bar",
-                  series:[{values:[1,2,4,5,6]}],
-                  "scale-x":{
-                      values:[1,2,3,4,5,]
-                  }
-              },
               notification:{
                   headline:"Upload finished",
                   body:"",
@@ -283,13 +308,139 @@ export default {
       },
 
       methods:{
-          GetMonthOfArray(fileName){
-              console.log(fileName);
+          ToggleData(){
+              this.DataToggleText="Dateien verstecken";
+              this.showFiles=!this.showFiles;
+          },
+          MakePrice(priceString){
+                var pricefloat = parseFloat(priceString.replaceAll(",","."));
+                return pricefloat;
+          },
+          MonthConstructor(dateString,price){
+              dateString = dateString.split("-");
+              var year = parseFloat(dateString[0]);
+              var month = parseFloat(dateString[1]); 
+              return {month:month,year:year,val:(month/100)+year,price:price};
+          },
+          GetIndexInMonth(val,months){
+              for(let i = 0; i<months.length;i++){
+                  if(val===months[i].val){
+                      return i;
+                  }
+              }
+              return false;
+          },
+          InsertInMonthLabels(newm,monthlabels){// eslint-disable-line no-unused-vars
+              if (monthlabels.length == 0){
+                  monthlabels.push(newm.month+"-"+newm.year);
+                  return [monthlabels,0];
+              }
+              for(let index = 0; index <monthlabels.length;index++){
+                  let item = monthlabels[index];
+                  if(newm.val==(parseFloat(item.split("-")[0])/100)+parseFloat(item.split("-")[1])){
+                      return [monthlabels,index];
+                  }
+                  if(index == monthlabels.length-1){
+                      console.log("the end is the place");
+                      monthlabels.push(newm.month+"-"+newm.year);
+                      return [monthlabels,index]
+                  }
+                  if(newm.val>(parseFloat(item.split("-")[0])/100)+parseFloat(item.split("-")[1])&&newm.val<(parseFloat(monthlabels[index+1].split("-")[0])/100)+parseFloat(item.split("-")[1])){
+                        console.log("this is the place");
+                        return [monthlabels,index]
+                  }
+                //   console.log(item+" "+index);
+              }
+          },
+          CreateChartData(persons){
+              var monthlabels = []
+              persons.forEach((person)=>{
+                  person.months.forEach((month)=>{
+                      monthlabels = this.InsertInMonthLabels(month,monthlabels)[0];
+                  })
+              })
+              this.data.datasets = []
+              persons.forEach((person,i)=>{
+                  person.data = [];
+                  var personind = 0;
+                  monthlabels.forEach((monthlabel)=>{
+                          if(personind<person.months.length){
+                            if(monthlabel == person.months[personind].month+"-"+person.months[personind].year){
+                                person.data.push(parseFloat(person.months[personind].price));
+                                personind ++;
+                            }
+                            else{
+                                person.data.push(0);
+                      }}
+                  })
+                //   console.log(person.name);
+                //   console.log(person.data);
+                try{
+                  this.data.datasets.push({
+                label:person.name,
+                data:person.data,
+                fill:false,
+                backgroundColor:this.colorways[i].backgroundColor,
+                borderColor:this.colorways[i].borderColor,
+            })}catch{
+                this.data.datasets.push({
+                label:person.name,
+                data:person.data,
+                fill:false,
+                backgroundColor:this.colorways[0].backgroundColor,
+                borderColor:this.colorways[0].borderColor,
+                })
+            }
+              })
+              console.log(persons[2].name);
+              console.log(persons[2].months);
+              console.log(persons[2].data);
+              
+              
+              this.data.labels = monthlabels;
+              var testcharti = Vue.extend(testchart);// eslint-disable-line no-unused-vars
+              var component = new testcharti({
+                  propsData:{
+                      data:this.data
+                  }
+              }).$mount();
+              console.log(document.getElementById("chartwrapper").lastChild.remove())
+              document.getElementById("chartwrapper").appendChild(component.$el);
+              
+
+              console.log(monthlabels);
           },
           GetkmPerMonthChart(){
-              for(let i = 0; i< this.files.length;i++){
-                  this.GetMonthOfArray(this.files[i].key);
+              var persons =[];
+              for(let i = 0; i<this.entries.length;i++){
+                  let ind = this.GetIndexInPersons(this.entries[i].key[1],persons);
+                  if(ind===false){
+                      persons.push({name:this.entries[i].key[1],months:[this.MonthConstructor(this.entries[i].key[6],this.MakePrice(this.entries[i].key[11]))]});
+                  }
+                  else{
+                    let indinmonth = this.GetIndexInMonth(this.MonthConstructor(this.entries[i].key[6],this.MakePrice(this.entries[i].key[11])).val,persons[ind].months);
+                      if(indinmonth===false){
+                          if (ind == 2){
+                              console.log(this.entries[i].key[6]);
+                              console.log(this.MonthConstructor(this.entries[i].key[6],this.MakePrice(this.entries[i].key[11])));
+                              console.log("saliiiim");
+                          }
+                          persons[ind].months.push(this.MonthConstructor(this.entries[i].key[6],this.MakePrice(this.entries[i].key[11])));
+                      }else{
+                          persons[ind].months[indinmonth].price += this.MakePrice(this.entries[i].key[11]);
+                          persons[ind].months[indinmonth].price= parseFloat(persons[ind].months[indinmonth].price).toFixed(2);
+                      }
+                  }
               }
+              this.CreateChartData(persons);
+          },
+          GetIndexInPersons(name,persons){
+              for(let i = 0; i<persons.length;i++){
+                  if(name===persons[i].name){
+                      return i;
+                  }
+              }
+              return false;
           },
           DeleteEntrie:function(file){
             let openRequest = indexedDB.open("data",1);
@@ -320,6 +471,7 @@ export default {
           },
           GetEntries:function(){
             let openRequest = indexedDB.open("data",1);
+            this.entries = [];
             openRequest.onupgradeneeded = function(event){ // eslint-disable-line no-unused-vars
                 let db = openRequest.result;
                 if(!db.objectStoreNames.contains('Entries')){
@@ -342,6 +494,10 @@ export default {
                                 indi = false;
                             }
                         })
+                        this.entries.push({
+                                key:key,
+                                name:value["fromFile"],
+                            })
                         if (indi){
                             this.files.push({
                                 key:key,
@@ -393,22 +549,22 @@ export default {
                             }catch(error){
                                 console.error(error);
                             }
-                            ReadFile(index+1,entries);
-                            if (index == files.length-1){
-                                this.PositiveNotification("Dateien Hochgeladen");
-                                setTimeout(()=>{
-                                    this.$refs.topProgress.done();
-                                    this.loaded=true;
-                                    this.showFiles=false;
-                                },1000)
-                                
-                                
-                          }
+                            ReadFile(index+1,entries);                                
                       }.bind(this);
                       reader.readAsBinaryString(file);
                   }
                   else{
-                      return;
+                      this.newfiles = [];
+                        this.PositiveNotification("Dateien Hochgeladen");
+                        this.GetEntries();
+                        setTimeout(()=>{
+                            this.$refs.topProgress.done();
+                            this.loaded=true;
+                            this.showFiles=false;
+                            this.DataToggleText = "Dateien Anzeigen";
+                            this.GetkmPerMonthChart();
+                        },1000)
+                        return;
                   }
               }.bind(this);
               ReadFile(0,new Array());
@@ -427,7 +583,6 @@ export default {
                     return i;
                   }
               }
-              console.log("No index found");
               return false;
           },  
           delfile(e){
@@ -446,13 +601,15 @@ export default {
           }
       },
       mounted(){
-          this.$refs.topProgress.start();
           this.GetEntries();
+          this.$refs.topProgress.start();
+          
           this.dragAndDropCapable = this.determineDragAndDropCapable();
           if (this.dragAndDropCapable){
-                var form = document.getElementById("dropzone");
+                
                 document.addEventListener('dragover',function(){
-                    form.classList.add("over"); 
+                    let form = document.getElementById("dropzone");
+                    form.classList.add("over");
                 });
                 ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach( function( evt ) { 
                   document.addEventListener(evt, function(e){
@@ -461,6 +618,7 @@ export default {
                   }.bind(this),false);
               }.bind(this));
               document.addEventListener("drop",function(e){
+                  let form = document.getElementById("dropzone");
                   for (let i = 0; i < e.dataTransfer.files.length; i ++ ){
                       if (e.dataTransfer.files[i].name.split(".").slice(-1) == "csv"&&this.FindIndexInFiles(e.dataTransfer.files[i].name)===false){
                         this.files.push(e.dataTransfer.files[i]);
@@ -478,8 +636,19 @@ export default {
               }.bind(this));
           }
           setTimeout(() => {
+            //   console.log(this.files.length);
+              if(this.files.length>0){
+                  this.showFiles=false;
+                  this.DataToggleText="Dateien anzeigen";
+                  this.PositiveNotification("Daten aus Speicher geladen");
+                  this.GetkmPerMonthChart();
+              }
+              else{ 
+                this.showFiles = true;
+                this.DataToggleText="Dateien anzeigen";
+              }
               this.$refs.topProgress.done();
-          }, (300));
+          }, (1000));
       }
   }
 </script>
