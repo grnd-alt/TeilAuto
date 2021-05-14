@@ -12,7 +12,6 @@
     color: #ccc;
     transition-duration:0.5s;
   }
-
   .over{
       border:3px dashed black;
       color:black;
@@ -174,7 +173,7 @@ import vueTopprogress from 'vue-top-progress'
 import Vue from 'vue';
 Vue.use(vueTopprogress);
 // import func from 'vue-editor-bridge';
-
+document.title = "TeilAuto";
 export default {
       name:"fileupload",
       components:{
